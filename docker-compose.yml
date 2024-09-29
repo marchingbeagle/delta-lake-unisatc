@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  hadoop:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
+    container_name: hadoop
+    environment:
+      - CLUSTER_NAME=test
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+
+  spark:
+    image: bitnami/spark:latest
+    environment:
+      - SPARK_MASTER_HOST=spark
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_JARS_PACKAGES=io.delta:delta-core_2.12:1.0.0
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    depends_on:
+      - hadoop
+    volumes:
+      - ./spark-data:/opt/spark/work-dir
+
+  jupyterlab:
+    build: .
+    container_name: jupyterlab
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYER_TOKEN=senhasecreta
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./jupyter-data:/home/jovyan/data
+    depends_on:
+      - spark
+
+volumes:
+  hadoop_namenode:
+  spark_data:
+    driver: local
