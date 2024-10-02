@@ -20,39 +20,67 @@ cd pyspark-delta-venda-carros
 
 ### Passo 2: Criar o Dockerfile
 
-Crie um arquivo chamado `Dockerfile` com o seguinte conteúdo:
+Crie um arquivo chamado `docker-compose.yml` com o seguinte conteúdo:
 
-```Dockerfile
-FROM bitnami/spark:latest
+```docker-compose.yml
+version: "3.8"
 
-USER root
+services:
+  hadoop:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
+    container_name: hadoop
+    environment:
+      - CLUSTER_NAME=test
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    ports:
+      - "9870:9870"
+      - "9000:9000"
 
-# Instalar JupyterLab
-RUN pip install jupyterlab delta-spark==2.4.0
+  spark:
+    image: bitnami/spark:3.5.0
+    environment:
+      - SPARK_MASTER_HOST=spark
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_JARS_PACKAGES=io.delta:delta-core_2.12:2.4.0
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    depends_on:
+      - hadoop
+    volumes:
+      - ./spark_data:/opt/spark/work-dir
 
-# Configurar o diretório de trabalho
-WORKDIR /app
+  jupyterlab:
+    build: .
+    container_name: jupyterlab
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYER_TOKEN=senhasecreta
+      - SPARK_JARS_PACKAGES=io.delta:delta-core_2.12:2.4.0
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./work:/home/jovyan/work
+      - ./data:/home/jovyan/data
+    depends_on:
+      - spark
 
-# Expor as portas necessárias
-EXPOSE 8888 4040
+volumes:
+  hadoop_namenode:
+  spark_data:
+    driver: local
+
 ```
 
-### Passo 3: Construir a imagem Docker
+### Passo 3: Subir os containers
 
 ```bash
-docker build -t pyspark-delta-venda-carros .
-```
-
-### Passo 4: Rodar o contêiner Docker
-
-```bash
-docker run -p 8888:8888 -v $(pwd):/app -it pyspark-delta-venda-carros bash
-```
-
-Dentro do contêiner Docker, inicie o JupyterLab:
-
-```bash
-jupyter-lab --ip=0.0.0.0 --no-browser --allow-root
+docker-compose up -d .
 ```
 
 Agora, você pode acessar o JupyterLab visitando `http://localhost:8888` em seu navegador.
